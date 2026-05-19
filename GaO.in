@@ -1,0 +1,58 @@
+# minimal for python
+# ---------- Initialize Simulation --------------------- 
+#variable alat equal 3.8848589
+#variable xdim equal ${alat}*5
+variable T1 equal 300
+variable T2 equal 4000
+variable tstep equal 0.001
+variable runtime equal 3700000
+variable Srandomseed equal 1001 
+variable NA  equal 6.02214179e23
+clear 
+units metal 
+dimension 3 
+boundary p p p
+atom_style full 
+variable rho equal mass(all)/${NA}/(vol*1.0e-24)
+# ---------- Create Atomistic Structure --------------------- 
+read_data GaO.lmp
+#region whole block 0 ${xdim} 0 ${xdim} 0 ${xdim} units box
+#create_box 1 whole
+#create_atoms 1 region whole
+# ---------- Define Interatomic Potential --------------------- 
+pair_style buck/coul/long/cs 16
+pair_coeff * * 0.0  1.0 0.0 # Other interactions set to zero
+pair_coeff 1 2 907.89   0.345    10.000   # Gashel-Oshel
+pair_coeff 2 2 22764.0  0.149    0.0  # Oshel-Oshel
+kspace_style ewald 1.0E-5
+#bond_style harmonic
+#bond_coeff 1 3.15 0
+neighbor 0.2 bin
+#bond_style class2
+timestep ${tstep}
+#min_style cg 
+#minimize 1e-8 1e-8 1000 1000 
+
+# ----- perform MD -------
+#velocity all create ${T2} ${Srandomseed}
+
+thermo 1000
+thermo_style custom step lx atoms temp pe lx ly lz press pxx pyy pzz vol v_rho
+fix 1 all nvt temp ${T2} ${T2} 0.1
+fix 2 all press/berendsen iso 0.0 0.0 1000.0
+run 50001
+unfix 1
+
+thermo 1000
+thermo_style custom step lx atoms temp pe lx ly lz press pxx pyy pzz vol v_rho
+thermo_modify lost ignore flush yes
+dump 3 all xyz 1000 GaO_model.xyz
+dump_modify 3 element Ga O
+fix 1 all nvt temp ${T2} ${T1} 0.1
+run ${runtime}
+
+thermo 1000
+thermo_style custom step lx atoms temp pe lx ly lz press pxx pyy pzz vol v_rho
+fix 1 all nvt temp ${T1} ${T1} 0.1
+run 50000
+unfix 1
